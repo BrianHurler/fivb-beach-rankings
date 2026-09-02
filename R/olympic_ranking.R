@@ -63,7 +63,12 @@ build_olympic_ranking_request <- function(gender,
     paste0('Fields="', paste(fields, collapse = " "), '"')
   )
 
-  paste0("<Request ", paste(attrs, collapse = " "), " />")
+  request_node <- paste0("<Request ", paste(attrs, collapse = " "), " />")
+
+  # GetBeachOlympicSelectionRanking is a legacy VIS request that is not
+  # available in the single-request/new format. VIS error 1008
+  # (NotInNewFormat) requires the request to be enclosed in <Requests>.
+  paste0("<Requests>", request_node, "</Requests>")
 }
 
 parse_olympic_ranking_body <- function(body,
