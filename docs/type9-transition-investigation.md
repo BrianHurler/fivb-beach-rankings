@@ -13,6 +13,26 @@ Analysis convention:
 
 The precise administrative effective date of the new formula may precede the first published ranking by a small amount, but 2017-02-13 is the first Type 9 snapshot in the archive for which the modern calculation and public identity are directly validated.
 
+### Project-wide usage rule
+
+For future historical analyses, the repository should apply the cutoff explicitly rather than simply filtering `ranking_type == 9`.
+
+Recommended interpretation:
+
+```text
+2008-03-31 through 2017-02-12
+  Use Type 10 Team / PlayerSum when a historical team-ranking measure is required.
+  Keep any Type 9 observations available for historical research, but do not label them
+  as the modern World Ranking.
+
+2017-02-13 onward
+  Use Type 9 as FIVB World Ranking.
+  Retain Type 10 Team / PlayerSum alongside it when useful because the two rankings
+  are mathematically and empirically distinct.
+```
+
+In other words, the presence of a Type 9 object before 2017-02-13 does **not** mean a modern World Ranking is available for that date. This distinction is essential for longitudinal analyses, rank-history plots, historical #1 queries, and any model using ranking position as a covariate.
+
 ## Evidence
 
 ### 1. 2016-era system: Season's Ranking
