@@ -1,6 +1,6 @@
 # Olympic Ranking History and Relationship to VIS Rankings
 
-This note documents how FIVB Beach Volleyball Olympic qualification rankings have been constructed across recent Olympic cycles, and how they relate to the ranking products exposed by the VIS API.
+This note documents how FIVB Beach Volleyball Olympic qualification rankings have been constructed across recent Olympic cycles, how they differ from ordinary FIVB rankings, and what the VIS API appears to preserve.
 
 ## Main conclusion
 
@@ -15,11 +15,32 @@ It generally uses the same underlying FIVB ranking points earned at eligible tou
 - NOC/NF quota limits;
 - Olympic-specific qualification cutoffs.
 
-This is strongly reinforced by VIS itself, which exposes a separate request:
+VIS reinforces this distinction by exposing a dedicated public request:
 
 `GetBeachOlympicSelectionRanking`
 
 rather than treating Olympic qualification as a subtype of `GetBeachRanking`.
+
+---
+
+## Beijing 2008
+
+### Olympic Ranking composition
+
+The Beijing 2008 qualification system used a fixed qualification window from **January 1, 2007 through July 20, 2008**.
+
+Only the points from each team's **eight best performances together** in nominated Olympic Qualification Tournaments counted toward the Olympic Ranking.
+
+Eligible events included World Championships, World Tour events, and recognized Continental Championship Finals.
+
+The qualification system stated that the FIVB would issue the Olympic Ranking no later than **July 21, 2008**.
+
+This is useful for the project because our general ranking archive begins in March 2008, so Beijing-era Olympic ranking data may overlap the beginning of our historical series if VIS still retains it.
+
+### Sources
+
+- FIVB Beijing 2008 qualification system: https://www.fivb.org/en/volleyball/competitions/olympics/2008/fivb.og2008.volleyball.olympic.qualification.system_eng.pdf
+- FIVB Beijing 2008 media guide: https://www.fivb.org/EN/BeachVolleyball/Competitions/Olympics/2008/W/Press/FIVB_BVB_OG2008_MediaGuide_Part1.pdf
 
 ---
 
@@ -42,8 +63,6 @@ The Olympic field was completed through other qualification pathways, including 
 The official London qualification regulations explicitly discuss both the **Olympic Ranking** and the **World Ranking** as separate concepts.
 
 The Olympic Ranking determined quota places. The World Ranking had a separate role in determining which eligible teams an NOC could nominate once it had earned quota places.
-
-This is direct evidence that the Olympic Ranking was not simply the ordinary World Ranking under a different name.
 
 ### Sources
 
@@ -68,23 +87,7 @@ Fifteen teams per gender qualified through the Olympic Ranking pathway, with the
 
 ### Interpretation
 
-The key phrase is that the Olympic Ranking used **FIVB World Ranking points**, not that it was the FIVB World Ranking itself.
-
-Conceptually:
-
-```text
-Tournament results
-      ↓
-FIVB ranking points
-      ↓
-      ├── ordinary FIVB ranking formula(s)
-      └── Olympic Ranking formula
-            - fixed Olympic window
-            - best 12 team results
-            - Olympic eligibility rules
-```
-
-This strongly suggests that the same point currency could feed multiple ranking products.
+The Olympic Ranking used FIVB ranking-point currency, but applied its own fixed Olympic window and best-12 team-results rule. It should therefore not be assumed to equal either the ordinary Team Entry ranking or the general team-results ranking used outside Olympic qualification.
 
 ### Sources
 
@@ -99,28 +102,14 @@ This strongly suggests that the same point currency could feed multiple ranking 
 
 The Tokyo qualification system again used each team's **12 best performances** during the Olympic qualification period.
 
-Eligible results included major FIVB events such as the World Championships, World Tour events, and recognized Continental Tour Finals.
-
 Because of the COVID-19 postponement, FIVB extended the Olympic Ranking qualification period through **June 13, 2021**, with the final ranking published on **June 14, 2021**.
 
-The best-12-results structure remained unchanged.
-
-### Olympic field pathways
-
-Tokyo's Olympic field combined multiple qualification pathways, including:
-
-- Olympic Ranking qualifiers;
-- the Olympic Qualification Tournament;
-- the 2019 World Champions;
-- Continental Cup qualification;
-- host allocation.
-
-Again, this confirms that the Olympic Ranking was one component of the Olympic qualification architecture rather than a synonym for the general World Ranking.
+The Games remained officially Tokyo 2020, so the VIS `GamesYear` should be `2020` even when querying a 2021 reference date.
 
 ### Sources
 
 - Tokyo 2020 qualification system: https://www.fivb.org/EN/BeachVolleyball/Forms/Olympic_Qualification/Tokyo2020-Qualification-System-Beach-Volleyball_31.01.2019.pdf
-- FIVB adaptation of Olympic qualification following the postponement: https://www.fivb.com/fivb-announces-adaptation-of-beach-volleyball-olympic-qualification/
+- FIVB adaptation of Olympic qualification: https://www.fivb.com/fivb-announces-adaptation-of-beach-volleyball-olympic-qualification/
 - Tokyo draw / qualification pathways: https://www.fivb.com/draw-reveals-pools-for-tokyo-2020-beach-volleyball-tournament/
 
 ---
@@ -133,23 +122,7 @@ For Paris 2024, the Olympic Ranking was based on each team's **12 best performan
 
 Seventeen teams per gender qualified through the Olympic Ranking pathway.
 
-The rest of the 24-team Olympic field came through other qualification routes, including the World Championships, continental qualification, and the host quota.
-
-### Contrast with the ordinary World Ranking
-
-By this era, the distinction is especially clear.
-
-The ordinary modern FIVB World Ranking is based on a **rolling 365-day period** and uses a smaller fixed number of best results.
-
-The Olympic Ranking instead used:
-
-```text
-12 best team results
-fixed Jan 1, 2023 → Jun 10, 2024 window
-Olympic-specific eligibility and quota rules
-```
-
-Therefore, even when the same tournament points feed both rankings, the Olympic Ranking and World Ranking should not generally be expected to match numerically.
+By this era the contrast with the ordinary World Ranking is especially clear: the modern World Ranking uses a rolling 365-day window and best eight performances, whereas the Olympic Ranking used best 12 across a fixed Olympic qualification window.
 
 ### Sources
 
@@ -159,84 +132,141 @@ Therefore, even when the same tournament points feed both rankings, the Olympic 
 
 ---
 
-## VIS ranking products relevant to this project
+## What VIS stores for Olympic qualification
 
-The current VIS ranking archive we are collecting contains several distinct ranking products:
+VIS has a dedicated public request:
 
-- **Type 6 / SubType 1 — FIVB Athlete**
-- **Type 9 / SubType 3 — FIVB World**
-- **Type 10 / SubType 2 — FIVB Team**
+```xml
+<Request Type="GetBeachOlympicSelectionRanking"
+         Gender="W"
+         GamesYear="2024"
+         ReferenceDate="2024-06-10"
+         Fields="GamesYear Position NoPlayer1 NoPlayer2 TeamName TeamCountryCode NbParticipations SelectionRank Points Status" />
+```
 
-VIS also exposes a separate Olympic-specific request:
+The request supports:
 
-`GetBeachOlympicSelectionRanking`
+- `Gender` — mandatory;
+- `GamesYear` — Olympic Games year;
+- `ReferenceDate` — exact date on which a ranking was calculated;
+- `OnlySelected` — all teams, selected teams only, or non-selected teams only.
 
-The request supports fields including Olympic Games year, gender, and historical reference date.
+If `GamesYear` is omitted, VIS returns the latest Olympic Games for which it has a ranking. If `ReferenceDate` is omitted, VIS returns the latest stored ranking date for that Olympic cycle. If an exact requested reference date was not calculated, VIS returns an empty ranking.
 
-This is the strongest technical evidence that Olympic qualification rankings should be treated as a separate archive rather than inferred from Type 6, Type 9, or Type 10.
+VIS identifies Olympic selection as its own global-ranking category (`BeachOlympicSelection`) and also has a dedicated historical data type (`BeachOlympicRanking`).
 
-### VIS sources
+### Entry fields
+
+The complete Olympic Selection Ranking entry field set exposed by the current VIS client/documentation is:
+
+- `GamesYear`
+- `Position`
+- `NoPlayer1`
+- `NoPlayer2`
+- `TeamName`
+- `TeamCountryCode`
+- `NbParticipations`
+- `SelectionRank`
+- `Points`
+- `Status`
+
+The stable player IDs are especially useful because Olympic snapshots can be joined directly to our Athlete, Team, and World ranking archives without relying only on historical team-name strings.
+
+### Selection-status information
+
+VIS does not merely store ranking position and points. `Status` records why a team is or is not selected:
+
+| Status | Meaning |
+|---:|---|
+| 1 | Selected |
+| 2 | Selected because of host minimum quota |
+| 3 | Selected because of confederation minimum quota |
+| 4 | Tied but not selected |
+| 5 | Not enough qualifying tournaments |
+| 6 | Excluded by country quota |
+| 7 | Not registered |
+| 8 | Not enough points |
+
+This makes the Olympic endpoint potentially richer than a simple ranking table: it may allow us to reconstruct Olympic eligibility and quota effects directly from VIS snapshots.
+
+### Important limitation: no Olympic-ranking list request
+
+Unlike the generic `GetBeachRankingList`, the public VIS request catalog does **not** expose a `GetBeachOlympicSelectionRankingList` request.
+
+Therefore, historical Olympic snapshot discovery appears to require probing plausible `ReferenceDate` values. A sensible workflow is:
+
+1. test the documented final reference date for each Olympic cycle;
+2. query the latest stored ranking for each `GamesYear` with no reference date;
+3. if historical snapshots are retained, scan likely ranking dates within each qualification window and archive every non-empty response.
+
+### VIS / client sources
 
 - Olympic Selection Ranking request: https://www.fivb.org/VisSDK/VisWebService/GetBeachOlympicSelectionRanking.html
-- Beach ranking types: https://www.fivb.org/VisSDK/Fivb.Vis.Model/Fivb.Vis.Model~Fivb.Vis.Beach.BeachRankingType.html
-- Beach ranking subtypes: https://www.fivb.org/VisSDK/Fivb.Vis.Model/Fivb.Vis.Model~Fivb.Vis.Beach.BeachRankingSubType.html
+- VIS request list: https://www.fivb.org/VisSDK/VisWebService/RequestList.html
 - VIS data types: https://www.fivb.org/VisSDK/VisWebService/DataType.html
+- OpenVolley `fivbvis` Olympic selection wrapper and field definitions: https://rdrr.io/github/openvolley/fivbvis/man/v_get_beach_olympic_selection_ranking.html
+- OpenVolley VIS field definitions: https://rdrr.io/github/openvolley/fivbvis/src/R/fields.R
+- OpenVolley VIS status mappings: https://rdrr.io/github/openvolley/fivbvis/src/R/data_schema.R
 
 ---
 
-## Working hypotheses for empirical validation
+## VIS discovery probe in this repository
 
-Our archive should treat the following as separate historical series until proven otherwise:
+The repo contains:
 
-1. FIVB Athlete Ranking
-2. FIVB Team Ranking
-3. FIVB World Ranking
-4. Olympic Selection Ranking
+```text
+R/olympic_ranking.R
+scripts/09_probe_olympic_rankings.R
+```
 
-The Olympic Ranking may be highly correlated with Type 9 FIVB World rankings, especially near Olympic qualification cutoffs, but official qualification rules indicate that it should not automatically be assumed to be identical.
+The probe tests both the expected final ranking date and the latest stored ranking for men and women in:
 
-Type 10 is particularly unlikely to be identical to the Olympic Ranking because its subtype represents teams ranked from the sum of the two players' points, whereas Olympic qualification rules consistently emphasize results earned **as a team**.
-
----
-
-## Proposed Olympic archive work
-
-After the general ranking archive is complete, add a dedicated Olympic Selection Ranking archive for at least:
-
+- Beijing 2008
 - London 2012
 - Rio 2016
 - Tokyo 2020
 - Paris 2024
 
-Initial final-snapshot dates to test:
+Expected final dates tested:
 
-| Games | VIS GamesYear | Final/reference date to test |
+| Games | VIS GamesYear | Final/reference date |
 |---|---:|---|
+| Beijing 2008 | 2008 | 2008-07-21 |
 | London 2012 | 2012 | 2012-06-18 |
 | Rio 2016 | 2016 | 2016-06-13 |
 | Tokyo 2020 | 2020 | 2021-06-14 |
 | Paris 2024 | 2024 | 2024-06-10 |
 
-For Tokyo, use `GamesYear="2020"` even though the Games were held in 2021.
+Run:
 
-If historical Olympic Selection snapshots are available, archive every distinct available reference date rather than only the final ranking.
+```r
+source("scripts/09_probe_olympic_rankings.R")
+```
+
+The probe preserves raw XML under `data/olympic_probe/raw/` and writes summary/entry CSVs under `data/olympic_probe/`.
+
+The first objective is to establish which cycles VIS still retains and whether the expected final snapshots exist exactly. Only after that should we scan each qualification period for every stored historical reference date.
 
 ---
 
-## Comparison analyses to run once both archives exist
+## Analysis convention once Olympic data is archived
 
-For matched dates, compare Olympic Selection Ranking against Types 6, 9, and 10 by player/team identifiers.
+Treat four ranking products as distinct:
 
-Useful diagnostics include:
+1. FIVB Athlete / Player ranking
+2. FIVB Team / PlayerSum ranking
+3. FIVB World / team-results ranking, using the validated historical-era rules documented elsewhere in this repo
+4. Olympic Selection Ranking
 
-- rank differences;
+For matched dates, useful comparisons include:
+
+- Olympic rank vs World rank;
+- Olympic rank vs Team rank;
 - points differences;
-- Spearman rank correlation;
-- teams appearing in one ranking but not another;
-- effect of NOC quota limits;
-- effect of fixed Olympic qualification windows;
-- effect of best-12 rules versus the ordinary rolling World Ranking rules;
-- whether World and Olympic rankings converge near qualification deadlines;
-- whether historical changes in World Ranking methodology explain changes in Olympic Ranking behavior.
+- teams appearing in one product but not another;
+- country-quota exclusions;
+- tournament-participation eligibility;
+- selected vs non-selected teams;
+- how Olympic and World rankings converge or diverge near qualification deadlines.
 
-The goal is to empirically document exactly how the FIVB ranking ecosystem evolved across Olympic cycles rather than assuming that similarly named rankings were interchangeable.
+The goal is to preserve the Olympic Ranking as the temporary, quad-specific qualification product it actually was rather than substituting another FIVB ranking for it.
