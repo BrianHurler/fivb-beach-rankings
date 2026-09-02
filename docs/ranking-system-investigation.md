@@ -72,6 +72,61 @@ https://www.fivb.org/EN/BeachVolleyball/Document/FIVB_BVB_2016-Sport-Regulations
 
 This is strong evidence that historical FIVB beach volleyball had multiple legitimate ranking constructs at the same time. Therefore, a VIS ranking should not be identified solely from its generic word `Team` or `World` without empirical validation.
 
+## Direct February 2017 evidence for the three ranking products
+
+A contemporaneous VolleyMob article published on February 15, 2017 reproduced the FIVB Beach World Rankings as of February 13, 2017 and linked directly to six separate FIVB ranking pages:
+
+- Men's World Ranking — `WRanking_M.asp`
+- Women's World Ranking — `WRanking_W.asp`
+- Men's Individual Entry Ranking — `PlayersRanking_M.asp`
+- Women's Individual Entry Ranking — `PlayersRanking_W.asp`
+- Men's Team Entry Ranking — `TeamsRanking_M.asp`
+- Women's Team Entry Ranking — `TeamsRanking_W.asp`
+
+Article:
+
+https://volleymob.com/fivb-updates-beach-world-rankings-ft-lauderdale-major/
+
+The article also explains the conceptual distinction:
+
+- entry rankings allocate points to individual athletes and use those values for entry-related team constructions;
+- World Rankings are based on actual current pairs and points earned together in competition.
+
+The old FIVB ranking page still exposes the same navigation structure:
+
+- FIVB World Ranking — Men / Women
+- Entry Rankings — Teams — Men / Women
+- Entry Rankings — Players — Men / Women
+- Provisional Olympic Ranking — Men / Women
+
+Example surviving FIVB page:
+
+https://www.fivb.org/EN/BeachVolleyball/WRanking_W.asp
+
+This gives us a strong proposed mapping for the 2017-era system:
+
+| VIS archive product | Historical public product |
+| --- | --- |
+| Type 9 / SubType 3 — FIVB World / Team | FIVB World Ranking |
+| Type 6 / SubType 1 — FIVB Athlete / Player | Individual / Player Entry Ranking |
+| Type 10 / SubType 2 — FIVB Team / PlayerSum | Team Entry Ranking |
+
+This mapping should now be validated numerically against the February 13, 2017 published table before being treated as fully confirmed.
+
+The published men's World Ranking top three on February 13, 2017 were:
+
+1. Lucena / Dalhausser (USA) — 4,920 points
+2. Samoilovs / Smedins (LAT) — 4,650 points
+3. Alison / Bruno Schmidt (BRA) — 4,620 points
+
+The published women's top three were:
+
+1. Larissa / Talita (BRA) — 5,420 points
+2. Walsh Jennings / Ross (USA) — 5,160 points
+3. Ludwig / Walkenhorst (GER) — 5,080 points
+
+This date is therefore one of our best exact external-validation targets.
+
 ## Important 2017-2018 transition clue
 
 A Volleyball Canada report from FIVB Beach Volleyball Commission discussions stated that beginning with the updated system there would be:
@@ -108,7 +163,7 @@ The data can still be completely valid even if the modern type labels were assig
 
 ### 2015 World Tour / season history
 
-FIVB historical material identifies Aleksandrs Samoilovs / Janis Smedins as the 2013 and 2014 men's World Tour champions and Alison / Bruno Schmidt as the 2015 men's champion. Barbara / Agatha are listed as the 2015 women's champion.
+FIVB historical material identifies Aleksandrs Samoilovs / Janis Smedins as the 2013 and 2014 men's World Ranking / World Tour season champions and Alison / Bruno Schmidt as the 2015 men's champion. Barbara / Agatha are listed as the 2015 women's champion.
 
 Useful source:
 
@@ -122,7 +177,7 @@ Modern Volleyball World material explicitly defines the FIVB Beach Volleyball Wo
 
 Example source:
 
-https://en.volleyballworld.com/news/world-champs-top-world-rankings-ahead-of-new-season
+https://en.volleyballworld.com/beachvolleyball/world-ranking/ranking-explained
 
 ### Modern entry / technical points remain separate
 
@@ -195,6 +250,24 @@ For each gender it exports the top 20 from both rankings side by side.
 
 These dates are intended to sample different regulatory eras and Olympic-cycle landmarks.
 
+### Test 5 — Exact February 13, 2017 external match
+
+This should be treated as a high-priority exact validation because a complete contemporaneous top-10 table survives online.
+
+For men, Type 9 should begin:
+
+1. Lucena / Dalhausser — 4,920
+2. Samoilovs / Smedins — 4,650
+3. Alison / Bruno Schmidt — 4,620
+
+For women, Type 9 should begin:
+
+1. Larissa / Talita — 5,420
+2. Walsh Jennings / Ross — 5,160
+3. Ludwig / Walkenhorst — 5,080
+
+If the VIS Type 9 snapshot matches those names and points exactly, the Type 9 ↔ public World Ranking mapping is directly confirmed for that date.
+
 ## External validation strategy
 
 For selected snapshots, locate a contemporaneous posted ranking or authoritative description from:
@@ -214,21 +287,21 @@ For every external validation, record:
 - which VIS product matches it;
 - whether the match is exact or approximate.
 
-## Working hypotheses
+## Working interpretation by era
 
-These are deliberately hypotheses, not conclusions.
+These should continue to be updated as the empirical tests accumulate.
 
-### Type 6 — FIVB Athlete
+### Type 6 — FIVB Athlete / Player
 
-Likely represents an individual-player ranking/technical points construct. The exact historical formula may change by era.
+For the 2017-era system, strong documentary evidence indicates this corresponds to the individual / player Entry Ranking. The exact calculation and terminology before and after that period may change by era and should be reconstructed from regulations.
 
 ### Type 10 — FIVB Team / PlayerSum
 
-Expected to be a team ordering created by adding two individual-player point totals. It may correspond closely to entry/seeding/technical-team concepts used historically rather than to the public World Ranking.
+For the 2017-era system, strong documentary evidence indicates this corresponds to the Team Entry Ranking. VIS defines it as the sum of both players' points. The archive audit will determine whether its player components are mechanically identical to Type 6 on the same date.
 
 ### Type 9 — FIVB World / Team
 
-The best candidate for the public team-based World Ranking, particularly after the 2017-2018 ranking-system simplification. However, the 2014-2017 portion requires careful historical validation before we assume the current label maps perfectly onto the public terminology used at the time.
+Strong documentary evidence identifies this as the public FIVB World Ranking in the 2017-era system, where actual pairs were ranked on points earned together. The 2014-2016 portion still deserves special historical validation because the modern VIS ranking schema was introduced around 2017 and may represent earlier data retrospectively.
 
 ### Olympic Ranking
 
