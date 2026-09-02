@@ -231,18 +231,21 @@ common_snapshots <- inner_join(
 ) |>
   arrange(ranking_date, ranking_gender)
 
-compare_snapshot <- function(date_value, gender_value) {
+compare_snapshot <- function(ranking_date, ranking_gender) {
+  date_value <- ranking_date
+  gender_value <- ranking_gender
+
   w <- world |>
     filter(
-      ranking_date == date_value,
-      ranking_gender == gender_value
+      .data$ranking_date == .env$date_value,
+      .data$ranking_gender == .env$gender_value
     ) |>
     arrange(world_position)
 
   t <- team |>
     filter(
-      ranking_date == date_value,
-      ranking_gender == gender_value
+      .data$ranking_date == .env$date_value,
+      .data$ranking_gender == .env$gender_value
     ) |>
     arrange(team_position)
 
