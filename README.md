@@ -20,6 +20,10 @@ A validated `GetBeachRanking` response has:
 
 For example, men's FIVB World ranking No. 774 (2015-03-23) returns 68 `<Entry>` rows.
 
+## Research notes
+
+- [Olympic Ranking History and Relationship to VIS Rankings](docs/olympic-ranking-history.md) — documents the London 2012, Rio 2016, Tokyo 2020/21, and Paris 2024 Olympic Ranking rules; distinguishes Olympic qualification from ordinary FIVB World/Team/Athlete rankings; and lays out the proposed Olympic Selection Ranking archive and validation work.
+
 ## Project structure
 
 ```text
@@ -35,6 +39,8 @@ scripts/
   03_download_archive.R
   04_parse_archive.R
   05_query_world_ranking.R
+docs/
+  olympic-ranking-history.md
 data/
   inventory/             # generated inventory files (ignored)
   raw/                   # raw ranking XML (ignored)
