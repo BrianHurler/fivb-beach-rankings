@@ -108,17 +108,22 @@ probe_one <- function(games_year, gender, reference_date = NULL, label) {
   )
 }
 
+cycle_gender <- bind_rows(
+  lapply(c("M", "W"), function(gender_value) {
+    cycle_targets |>
+      mutate(gender = gender_value)
+  })
+)
+
 probe_plan <- bind_rows(
-  cycle_targets |>
-    tidyr::crossing(gender = c("M", "W")) |>
+  cycle_gender |>
     transmute(
       games_year,
       gender,
       reference_date = expected_final_date,
       probe = "expected_final"
     ),
-  cycle_targets |>
-    tidyr::crossing(gender = c("M", "W")) |>
+  cycle_gender |>
     transmute(
       games_year,
       gender,
