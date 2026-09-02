@@ -79,8 +79,7 @@ utils::write.csv(
 )
 
 # -----------------------------------------------------------------------------
-# 2. Does Type 10 equal the sum of the two player components?
-#    VIS documents Type 10 / SubType 2 as PlayerSum.
+# 2. Type 10 arithmetic: is Points exactly PointsPlayer1 + PointsPlayer2?
 # -----------------------------------------------------------------------------
 
 type10_math <- x |>
@@ -111,25 +110,37 @@ utils::write.csv(
 )
 
 # -----------------------------------------------------------------------------
-# 3. Does each Type 10 player component equal that player's Type 6 points
-#    on the same ranking date?
+# 3. Type 6 -> Type 10 linkage.
+#    Does each Type 10 player component equal that player's Type 6 points on the
+#    same ranking date? Preserve mismatches for historical investigation.
 # -----------------------------------------------------------------------------
 
-athlete_points <- x |>
+athlete_points_raw <- x |>
   filter(ranking_type == 6L) |>
   transmute(
     ranking_date,
     ranking_gender,
     player_id = NoPlayer1,
     athlete_position = Position,
-    athlete_points = Points
+    athlete_points = Points,
+    athlete_ranking_no = ranking_no
   ) |>
-  distinct(
-    ranking_date,
-    ranking_gender,
-    player_id,
-    .keep_all = TRUE
-  )
+  filter(!is.na(player_id))
+
+athlete_duplicate_players <- athlete_points_raw |>
+  count(ranking_date, ranking_gender, player_id, name = "rows_for_player") |>
+  filter(rows_for_player > 1L) |>
+  arrange(ranking_date, ranking_gender, desc(rows_for_player), player_id)
+
+utils::write.csv(
+  athlete_duplicate_players,
+  file.path(audit_dir, "type6_duplicate_players.csv"),
+  row.names = FALSE
+)
+
+athlete_points <- athlete_points_raw |>
+  arrange(ranking_date, ranking_gender, player_id, athlete_position) |>
+  distinct(ranking_date, ranking_gender, player_id, .keep_all = TRUE)
 
 team_components <- bind_rows(
   x |>
@@ -168,18 +179,25 @@ type6_type10_player_match <- team_components |>
     exact_points_match = case_when(
       is.na(component_points) | is.na(athlete_points) ~ NA,
       TRUE ~ dplyr::near(component_points, athlete_points)
-    )
+    ),
+    points_difference = component_points - athlete_points,
+    abs_points_difference = abs(points_difference),
+    ranking_year = as.integer(format(ranking_date, "%Y"))
   )
 
 type6_type10_match_summary <- type6_type10_player_match |>
-  group_by(ranking_year = as.integer(format(ranking_date, "%Y"))) |>
+  group_by(ranking_year) |>
   summarise(
     matched_player_rows = n(),
     share_exact_points_match = safe_share(exact_points_match),
-    median_component_minus_athlete = median(
-      component_points - athlete_points,
-      na.rm = TRUE
+    mismatched_player_rows = sum(exact_points_match %in% FALSE, na.rm = TRUE),
+    median_component_minus_athlete = median(points_difference, na.rm = TRUE),
+    median_abs_points_difference_mismatches = if_else(
+      any(exact_points_match %in% FALSE),
+      median(abs_points_difference[exact_points_match %in% FALSE], na.rm = TRUE),
+      0
     ),
+    max_abs_points_difference = max(abs_points_difference, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -189,12 +207,23 @@ utils::write.csv(
   row.names = FALSE
 )
 
+type6_type10_mismatches <- type6_type10_player_match |>
+  filter(exact_points_match %in% FALSE) |>
+  arrange(ranking_date, ranking_gender, desc(abs_points_difference))
+
+utils::write.csv(
+  type6_type10_mismatches,
+  file.path(audit_dir, "type6_vs_type10_mismatches.csv"),
+  row.names = FALSE
+)
+
 # -----------------------------------------------------------------------------
-# 4. Compare Type 9 (FIVB World) vs Type 10 (FIVB Team) on common dates.
-#    Pair identity is based on the two VIS player IDs, independent of player order.
+# 4. Type 9 (World) vs Type 10 (Team / PlayerSum).
+#    First diagnose duplicate pair keys. Then canonicalize to one row per pair
+#    per snapshot before calculating overlap/correlation metrics.
 # -----------------------------------------------------------------------------
 
-world <- x |>
+world_raw <- x |>
   filter(ranking_type == 9L, !is.na(pair_key)) |>
   transmute(
     ranking_date,
@@ -208,7 +237,7 @@ world <- x |>
     world_ranking_no = ranking_no
   )
 
-team <- x |>
+team_raw <- x |>
   filter(ranking_type == 10L, !is.na(pair_key)) |>
   transmute(
     ranking_date,
@@ -221,6 +250,84 @@ team <- x |>
     team_points = Points,
     team_ranking_no = ranking_no
   )
+
+world_duplicate_pairs <- world_raw |>
+  count(ranking_date, ranking_gender, pair_key, name = "rows_for_pair") |>
+  filter(rows_for_pair > 1L)
+
+team_duplicate_pairs <- team_raw |>
+  count(ranking_date, ranking_gender, pair_key, name = "rows_for_pair") |>
+  filter(rows_for_pair > 1L)
+
+utils::write.csv(
+  world_duplicate_pairs,
+  file.path(audit_dir, "world_duplicate_pair_keys.csv"),
+  row.names = FALSE
+)
+
+utils::write.csv(
+  team_duplicate_pairs,
+  file.path(audit_dir, "team_duplicate_pair_keys.csv"),
+  row.names = FALSE
+)
+
+world_duplicate_rows <- world_raw |>
+  semi_join(
+    world_duplicate_pairs,
+    by = c("ranking_date", "ranking_gender", "pair_key")
+  ) |>
+  arrange(ranking_date, ranking_gender, pair_key, world_position)
+
+team_duplicate_rows <- team_raw |>
+  semi_join(
+    team_duplicate_pairs,
+    by = c("ranking_date", "ranking_gender", "pair_key")
+  ) |>
+  arrange(ranking_date, ranking_gender, pair_key, team_position)
+
+utils::write.csv(
+  world_duplicate_rows,
+  file.path(audit_dir, "world_duplicate_pair_rows.csv"),
+  row.names = FALSE
+)
+
+utils::write.csv(
+  team_duplicate_rows,
+  file.path(audit_dir, "team_duplicate_pair_rows.csv"),
+  row.names = FALSE
+)
+
+duplicate_pair_summary <- bind_rows(
+  world_duplicate_pairs |>
+    mutate(product = "World"),
+  team_duplicate_pairs |>
+    mutate(product = "Team")
+) |>
+  mutate(
+    year = as.integer(format(ranking_date, "%Y")),
+    gender_name = if_else(ranking_gender == 0L, "Men", "Women")
+  ) |>
+  group_by(product, year, ranking_gender, gender_name) |>
+  summarise(
+    snapshot_pair_keys_duplicated = n(),
+    extra_rows_from_duplicates = sum(rows_for_pair - 1L),
+    .groups = "drop"
+  )
+
+utils::write.csv(
+  duplicate_pair_summary,
+  file.path(audit_dir, "duplicate_pair_summary_by_year.csv"),
+  row.names = FALSE
+)
+
+# Canonical comparison tables: keep the highest-ranked occurrence of a pair.
+world <- world_raw |>
+  arrange(ranking_date, ranking_gender, world_position) |>
+  distinct(ranking_date, ranking_gender, pair_key, .keep_all = TRUE)
+
+team <- team_raw |>
+  arrange(ranking_date, ranking_gender, team_position) |>
+  distinct(ranking_date, ranking_gender, pair_key, .keep_all = TRUE)
 
 common_snapshots <- inner_join(
   world |>
@@ -252,7 +359,8 @@ compare_snapshot <- function(ranking_date, ranking_gender) {
   joined <- inner_join(
     w,
     t,
-    by = c("ranking_date", "ranking_gender", "pair_key")
+    by = c("ranking_date", "ranking_gender", "pair_key"),
+    relationship = "one-to-one"
   )
 
   w_top10 <- w |>
@@ -267,8 +375,8 @@ compare_snapshot <- function(ranking_date, ranking_gender) {
     ranking_date = date_value,
     ranking_gender = gender_value,
     gender_name = if_else(gender_value == 0L, "Men", "Women"),
-    n_world = nrow(w),
-    n_team = nrow(t),
+    n_world_unique_pairs = nrow(w),
+    n_team_unique_pairs = nrow(t),
     n_pair_overlap = nrow(joined),
     share_world_pairs_in_team = if_else(nrow(w) > 0L, nrow(joined) / nrow(w), NA_real_),
     share_team_pairs_in_world = if_else(nrow(t) > 0L, nrow(joined) / nrow(t), NA_real_),
@@ -308,6 +416,7 @@ world_vs_team_by_year <- world_vs_team_by_snapshot |>
   summarise(
     snapshots = n(),
     mean_pair_overlap_world_share = mean(share_world_pairs_in_team, na.rm = TRUE),
+    mean_pair_overlap_team_share = mean(share_team_pairs_in_world, na.rm = TRUE),
     mean_top10_overlap = mean(top10_overlap, na.rm = TRUE),
     share_same_number_one = mean(same_number_one, na.rm = TRUE),
     median_spearman_position = median(spearman_position, na.rm = TRUE),
@@ -330,6 +439,7 @@ utils::write.csv(
 target_dates <- as.Date(c(
   "2015-03-23",
   "2016-06-13",
+  "2017-02-13",
   "2018-01-01",
   "2021-06-14",
   "2024-06-10",
@@ -397,7 +507,8 @@ sample_top20 <- pmap_dfr(
     full_join(
       w,
       t,
-      by = c("ranking_date", "ranking_gender", "pair_key")
+      by = c("ranking_date", "ranking_gender", "pair_key"),
+      relationship = "one-to-one"
     ) |>
       mutate(
         target_date = .env$target_date_value,
@@ -421,10 +532,17 @@ cat("\nTYPE 10 POINT MATH\n")
 print(type10_math_summary)
 
 cat("\nTYPE 6 -> TYPE 10 PLAYER COMPONENT MATCH BY YEAR\n")
-print(type6_type10_match_summary, n = Inf)
+print(type6_type10_match_summary, n = Inf, width = Inf)
 
-cat("\nWORLD VS TEAM -- YEARLY SUMMARY\n")
-print(world_vs_team_by_year, n = Inf)
+cat("\nDUPLICATE PAIR KEYS BY YEAR\n")
+if (nrow(duplicate_pair_summary) == 0L) {
+  cat("None.\n")
+} else {
+  print(duplicate_pair_summary, n = Inf, width = Inf)
+}
+
+cat("\nWORLD VS TEAM -- YEARLY SUMMARY (UNIQUE PAIRS)\n")
+print(world_vs_team_by_year, n = Inf, width = Inf)
 
 cat("\nHISTORICAL SAMPLE PLAN\n")
 print(sample_plan, n = Inf)
