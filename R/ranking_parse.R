@@ -6,9 +6,82 @@ find_ranking_node <- function(doc) {
 }
 
 find_ranking_entry_nodes <- function(doc) {
-  # Entry tag names can vary across VIS response shapes. Position is a
-  # documented ranking-entry attribute and is a safer discovery key.
-  xml2::xml_find_all(doc, ".//*[@Position]")
+  ranking_node <- find_ranking_node(doc)
+
+  if (inherits(ranking_node, "xml_missing")) {
+    return(xml2::xml_find_all(doc, ".//*[false()]"))
+  }
+
+  # Validated against VIS GetBeachRanking response for ranking No. 774:
+  # BeachRanking is the root and ranking rows are child <Entry> nodes.
+  entries <- xml2::xml_find_all(
+    ranking_node,
+    "./*[local-name()='Entry']"
+  )
+
+  # Defensive fallback for any older/different VIS response shape.
+  if (length(entries) == 0L) {
+    entries <- xml2::xml_find_all(
+      ranking_node,
+      ".//*[@Position]"
+    )
+  }
+
+  entries
+}
+
+validate_ranking_body <- function(body, expected_no = NULL, min_entries = 1L) {
+  doc <- tryCatch(
+    xml2::read_xml(body),
+    error = function(e) {
+      stop("VIS response is not valid XML: ", conditionMessage(e), call. = FALSE)
+    }
+  )
+
+  root <- xml2::xml_root(doc)
+  root_name <- xml2::xml_name(root)
+
+  if (!identical(root_name, "BeachRanking")) {
+    stop(
+      "Expected VIS <BeachRanking> response but received <",
+      root_name,
+      ">: ",
+      substr(body, 1L, 500L),
+      call. = FALSE
+    )
+  }
+
+  ranking_attrs <- xml2::xml_attrs(root)
+
+  if (!is.null(expected_no)) {
+    returned_no <- suppressWarnings(as.integer(ranking_attrs[["No"]]))
+
+    if (is.na(returned_no) || returned_no != as.integer(expected_no)) {
+      stop(
+        "VIS returned ranking No=", returned_no,
+        " when No=", as.integer(expected_no), " was requested.",
+        call. = FALSE
+      )
+    }
+  }
+
+  entries <- find_ranking_entry_nodes(doc)
+
+  if (length(entries) < as.integer(min_entries)) {
+    stop(
+      "Ranking ", ranking_attrs[["No"]],
+      " returned ", length(entries),
+      " entry nodes; expected at least ", as.integer(min_entries), ".",
+      call. = FALSE
+    )
+  }
+
+  invisible(list(
+    doc = doc,
+    ranking_attributes = ranking_attrs,
+    entries = entries,
+    n_entries = length(entries)
+  ))
 }
 
 inspect_ranking_response <- function(body, preview_chars = 3000L) {
@@ -20,7 +93,7 @@ inspect_ranking_response <- function(body, preview_chars = 3000L) {
     root_name = xml2::xml_name(root),
     root_attributes = xml2::xml_attrs(root),
     element_names = unique(xml2::xml_name(xml2::xml_find_all(doc, ".//*"))),
-    n_position_nodes = length(entries),
+    n_entries = length(entries),
     preview = substr(body, 1L, preview_chars)
   )
 
@@ -29,7 +102,7 @@ inspect_ranking_response <- function(body, preview_chars = 3000L) {
   print(out$root_attributes)
   cat("\nElement names:\n")
   print(out$element_names)
-  cat("\nNodes with Position attribute:", out$n_position_nodes, "\n\n")
+  cat("\nRanking entry nodes:", out$n_entries, "\n\n")
   cat("Response preview:\n\n", out$preview, "\n", sep = "")
 
   invisible(out)
@@ -56,7 +129,7 @@ parse_ranking_xml <- function(file_path) {
   entries <- find_ranking_entry_nodes(doc)
 
   if (length(entries) == 0L) {
-    warning("No ranking entry nodes with Position attribute in ", file_path)
+    warning("No ranking Entry nodes in ", file_path)
     return(tibble::tibble())
   }
 
@@ -80,7 +153,7 @@ parse_ranking_xml <- function(file_path) {
 
 clean_ranking_entries <- function(x) {
   integer_fields <- c(
-    "NoRanking", "Position", "Rank", "NoPlayer1", "NoPlayer2",
+    "No", "NoRanking", "Position", "Rank", "NoPlayer1", "NoPlayer2",
     "NbTakenResultsPlayer1", "NbTotalResultsPlayer1",
     "NbTakenResultsPlayer2", "NbTotalResultsPlayer2",
     "NbTakenResultsTeam", "NbTotalResultsTeam"
