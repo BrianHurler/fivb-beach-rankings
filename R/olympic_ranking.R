@@ -19,6 +19,17 @@ OLYMPIC_RANKING_FIELDS <- c(
   "Status"
 )
 
+OLYMPIC_STATUS_LABELS <- c(
+  `1` = "Selected",
+  `2` = "SelectedMinHostQuota",
+  `3` = "SelectedMinConfederationQuota",
+  `4` = "Tie",
+  `5` = "NotEnoughTournaments",
+  `6` = "CountryQuota",
+  `7` = "NotRegistered",
+  `8` = "NotEnoughPoints"
+)
+
 build_olympic_ranking_request <- function(gender,
                                           games_year = NULL,
                                           reference_date = NULL,
@@ -60,18 +71,24 @@ parse_olympic_ranking_body <- function(body,
                                        requested_gender = NA_character_,
                                        requested_reference_date = as.Date(NA)) {
   doc <- xml2::read_xml(body)
+  root <- xml2::xml_root(doc)
 
-  error_nodes <- xml2::xml_find_all(doc, ".//BadParameter | .//ParameterMissing | .//Error")
-  if (length(error_nodes) > 0L) {
+  error_names <- c("BadParameter", "ParameterMissing", "Error", "Errors")
+  error_nodes <- xml2::xml_find_all(
+    doc,
+    "//*[self::BadParameter or self::ParameterMissing or self::Error or self::Errors]"
+  )
+
+  if (xml2::xml_name(root) %in% error_names || length(error_nodes) > 0L) {
     stop(
       "VIS returned an Olympic ranking error:\n",
-      paste(vapply(error_nodes, xml2::as_xml_document, character(1)), collapse = "\n"),
+      as.character(doc),
       call. = FALSE
     )
   }
 
-  ranking_node <- if (xml2::xml_name(xml2::xml_root(doc)) == "BeachOlympicSelectionRanking") {
-    xml2::xml_root(doc)
+  ranking_node <- if (xml2::xml_name(root) == "BeachOlympicSelectionRanking") {
+    root
   } else {
     xml2::xml_find_first(doc, ".//BeachOlympicSelectionRanking")
   }
@@ -114,6 +131,13 @@ parse_olympic_ranking_body <- function(body,
         ~ suppressWarnings(as.numeric(.x))
       )
     )
+
+  if ("Status" %in% names(out)) {
+    out <- out |>
+      dplyr::mutate(
+        StatusLabel = unname(OLYMPIC_STATUS_LABELS[as.character(Status)])
+      )
+  }
 
   list(
     root_attributes = if (!inherits(ranking_node, "xml_missing")) xml2::xml_attrs(ranking_node) else character(),
