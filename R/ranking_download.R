@@ -48,7 +48,8 @@ get_beach_ranking_raw <- function(
     ranking_no,
     subtype,
     entries_fields = NULL,
-    max_tries = 5L
+    max_tries = 5L,
+    validate = TRUE
 ) {
   request_xml <- build_get_beach_ranking_request(
     ranking_no = ranking_no,
@@ -64,6 +65,21 @@ get_beach_ranking_raw <- function(
       body <- httr2::resp_body_string(resp)
 
       if (status == 200) {
+        if (isTRUE(validate)) {
+          if (!exists("validate_ranking_body", mode = "function")) {
+            stop(
+              "validate_ranking_body() is not loaded. Source R/ranking_parse.R before requesting rankings.",
+              call. = FALSE
+            )
+          }
+
+          validate_ranking_body(
+            body,
+            expected_no = ranking_no,
+            min_entries = 1L
+          )
+        }
+
         return(body)
       }
 
@@ -130,12 +146,30 @@ download_ranking_archive <- function(
     log_row <- which(log$ranking_no == ranking_no)
 
     if (file.exists(file_path)) {
-      if (length(log_row) == 1L) {
-        log$downloaded[log_row] <- TRUE
-        if (is.na(log$last_status[log_row])) log$last_status[log_row] <- "existing"
+      # Existing files are revalidated before being trusted. This protects
+      # against a prior run having saved VIS error XML under a ranking name.
+      existing_body <- paste(readLines(file_path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+      existing_ok <- tryCatch(
+        {
+          validate_ranking_body(existing_body, expected_no = ranking_no, min_entries = 1L)
+          TRUE
+        },
+        error = function(e) {
+          message("Existing file failed validation for ranking ", ranking_no, ": ", conditionMessage(e))
+          FALSE
+        }
+      )
+
+      if (existing_ok) {
+        if (length(log_row) == 1L) {
+          log$downloaded[log_row] <- TRUE
+          if (is.na(log$last_status[log_row])) log$last_status[log_row] <- "existing"
+        }
+        message(sprintf("[%d/%d] ranking %d -- exists", i, nrow(inventory), ranking_no))
+        next
       }
-      message(sprintf("[%d/%d] ranking %d -- exists", i, nrow(inventory), ranking_no))
-      next
+
+      unlink(file_path)
     }
 
     message(sprintf(
@@ -146,9 +180,15 @@ download_ranking_archive <- function(
     if (length(log_row) == 1L) log$attempts[log_row] <- log$attempts[log_row] + 1L
 
     body <- tryCatch(
-      get_beach_ranking_raw(ranking_no, row$SubType, max_tries = max_tries),
+      get_beach_ranking_raw(
+        ranking_no = ranking_no,
+        subtype = row$SubType,
+        max_tries = max_tries,
+        validate = TRUE
+      ),
       error = function(e) {
         if (length(log_row) == 1L) {
+          log$downloaded[log_row] <- FALSE
           log$last_status[log_row] <- "error"
           log$last_error[log_row] <- conditionMessage(e)
         }
