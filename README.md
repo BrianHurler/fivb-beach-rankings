@@ -10,7 +10,16 @@ The archive targets rankings from `2008-01-01` onward for:
 - Type 9 / SubType 3 — FIVB World / Team
 - Type 10 / SubType 2 — FIVB Team / PlayerSum
 
-The completed archive contains 3,663 ranking snapshots and more than 6 million ranking-entry rows from 2008-03-31 through 2026-08-31.
+The completed general-ranking archive contains 3,663 ranking snapshots and more than 6 million ranking-entry rows from 2008-03-31 through 2026-08-31.
+
+A separate Olympic Selection Ranking archive is being built for:
+
+- London 2012
+- Rio 2016
+- Tokyo 2020 / held in 2021
+- Paris 2024
+
+The live VIS API has been confirmed to retain Olympic Selection Rankings for all four cycles.
 
 A validated `GetBeachRanking` response has:
 
@@ -27,22 +36,24 @@ Our historical validation supports the following operational rule:
 - **Before 2017-02-13:** Type 9 belongs to the historical team-results / Season Ranking era and should not be labeled as the modern World Ranking.
 - **On or after 2017-02-13:** Type 9 is the validated FIVB World Ranking: the best eight performances achieved together as a team over a rolling 365-day period.
 - **Type 10:** Team / PlayerSum ranking. Its points equal `PointsPlayer1 + PointsPlayer2`; it is distinct from Type 9.
+- **Olympic Selection Ranking:** a temporary, quad-specific ranking with its own fixed qualification window, result-count rule, eligibility statuses, and Olympic quota logic.
 
 For future analyses:
 
 - when a validated modern World Ranking is available (`ranking_date >= 2017-02-13`), retain **both World (Type 9) and Team (Type 10)** because they measure different ranking constructs;
 - before that cutoff, use **Team (Type 10)** as the historical ranking measure when needed, clearly labeled as Team rather than World;
-- Olympic Ranking is a separate qualification product and should not be substituted with either Type 9 or Type 10.
+- during an Olympic qualification window, retain the **Olympic Selection Ranking as an additional separate measure** rather than substituting World or Team ranking for it;
+- Olympic ranking `Position`, `SelectionRank`, and `Status` should be preserved separately because teams already qualified through another pathway can remain high in the points table without consuming an Olympic-Ranking quota.
 
-Why the cutoff matters: an apparently strange Type 9 table from 2015 is consistent with the historical Season Ranking system rather than the later rolling-365 World Ranking. The archive stops its pre-2017 Type 9 sequence on 2016-12-31, has no January 2017 Type 9 snapshots, and resumes on 2017-02-13. That February 13 snapshot has been directly validated against a contemporaneously published FIVB World Ranking.
+Why the Type 9 cutoff matters: an apparently strange Type 9 table from 2015 is consistent with the historical Season Ranking system rather than the later rolling-365 World Ranking. The archive stops its pre-2017 Type 9 sequence on 2016-12-31, has no January 2017 Type 9 snapshots, and resumes on 2017-02-13. That February 13 snapshot has been directly validated against a contemporaneously published FIVB World Ranking.
 
-See [Type 9 Transition: Season Ranking to Modern World Ranking](docs/type9-transition-investigation.md) for the full evidence and [Ranking System Investigation](docs/ranking-system-investigation.md) for the broader ranking taxonomy.
+See [Type 9 Transition: Season Ranking to Modern World Ranking](docs/type9-transition-investigation.md) for the full evidence, [Ranking System Investigation](docs/ranking-system-investigation.md) for the broader ranking taxonomy, and [Olympic Ranking History and Relationship to VIS Rankings](docs/olympic-ranking-history.md) for Olympic-specific rules and VIS findings.
 
 ## Research notes
 
 - [Type 9 Transition: Season Ranking to Modern World Ranking](docs/type9-transition-investigation.md) — documents the validated `2017-02-13` operational cutoff and the evidence for the change from the historical season-based team ranking to the modern best-8 / rolling-365 World Ranking.
 - [Ranking System Investigation](docs/ranking-system-investigation.md) — documents the relationship among Type 6, Type 9, and Type 10 and the empirical audit results.
-- [Olympic Ranking History and Relationship to VIS Rankings](docs/olympic-ranking-history.md) — documents London 2012, Rio 2016, Tokyo 2020/21, and Paris 2024 Olympic Ranking rules and the distinction between Olympic qualification and ordinary FIVB rankings.
+- [Olympic Ranking History and Relationship to VIS Rankings](docs/olympic-ranking-history.md) — documents London 2012, Rio 2016, Tokyo 2020/21, and Paris 2024 Olympic Ranking rules, retained VIS data, selection statuses, and the Olympic archive workflow.
 - [Empirical Ranking Findings](docs/empirical-ranking-findings.md) — records archive-wide numerical findings from the ranking audits.
 
 ## Project structure
@@ -53,6 +64,7 @@ R/
   ranking_inventory.R    # inventory + archive queue
   ranking_download.R     # validated single-ranking and resumable downloads
   ranking_parse.R        # raw XML validation/inspection/parsing helpers
+  olympic_ranking.R      # Olympic Selection Ranking request + parser helpers
 scripts/
   01_build_inventory.R
   02_inspect_ranking_774.R
@@ -63,6 +75,8 @@ scripts/
   06_audit_ranking_systems.R
   07_validate_feb2017_world_ranking.R
   08_audit_type9_world_transition.R
+  09_probe_olympic_rankings.R
+  10_discover_olympic_reference_dates.R
 docs/
   ranking-system-investigation.md
   empirical-ranking-findings.md
@@ -70,10 +84,12 @@ docs/
   olympic-ranking-history.md
 data/
   inventory/             # generated inventory files (ignored)
-  raw/                   # raw ranking XML (ignored)
-  parsed/                # parsed datasets (ignored)
+  raw/                   # raw general-ranking XML (ignored)
+  parsed/                # parsed general-ranking datasets (ignored)
   audit/                 # generated audit outputs (ignored)
   validation/            # generated validation outputs (ignored)
+  olympic_probe/         # generated Olympic probe outputs (ignored)
+  olympic_discovery/     # generated Olympic reference-date discovery (ignored)
   logs/                  # preflight + download logs (ignored)
 ```
 
@@ -105,7 +121,7 @@ This object is useful for validating XML structure, but because it predates `201
 source("scripts/02b_validate_archive_samples.R")
 ```
 
-4. Download the complete archive:
+4. Download the complete general-ranking archive:
 
 ```r
 source("scripts/03_download_archive.R")
@@ -136,6 +152,20 @@ source("scripts/07_validate_feb2017_world_ranking.R")
 ```r
 source("scripts/08_audit_type9_world_transition.R")
 ```
+
+9. Probe the retained Olympic Selection Rankings and known final snapshots:
+
+```r
+source("scripts/09_probe_olympic_rankings.R")
+```
+
+10. Discover every exact Olympic `ReferenceDate` retained by VIS across the four qualification windows:
+
+```r
+source("scripts/10_discover_olympic_reference_dates.R")
+```
+
+Script 10 is checkpointed and resumable because VIS does not expose an Olympic-ranking list endpoint; it must probe exact calendar dates to discover stored snapshots.
 
 ## Design principle
 
