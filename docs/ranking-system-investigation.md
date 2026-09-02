@@ -1,193 +1,96 @@
 # Ranking System Investigation
 
-This document tracks what the archived VIS ranking products appear to represent, how they differ, and how we plan to validate them against historical FIVB language and public ranking tables.
+This document tracks what the archived VIS ranking products represent, how they differ, and how they should be used in historical analysis.
 
-## Why this investigation matters
+## Project-wide interpretation
 
-The VIS API exposes multiple beach-volleyball ranking products that coexist on the same dates. Their names alone are not enough to assume they correspond to the public ranking terminology used by FIVB in every historical era.
+The archive contains three recurring VIS ranking products:
 
-The archive currently contains:
+| VIS product | Unit | Interpretation |
+| --- | --- | --- |
+| Type 6 / SubType 1 | Player | FIVB Athlete / individual-player ranking value |
+| Type 10 / SubType 2 | PlayerSum | Team / entry-style ranking made from the sum of two player values |
+| Type 9 / SubType 3 | Team | Team-results ranking; becomes the validated modern FIVB World Ranking on 2017-02-13 |
 
-- Type 6 / SubType 1 — FIVB Athlete / Player
-- Type 9 / SubType 3 — FIVB World / Team
-- Type 10 / SubType 2 — FIVB Team / PlayerSum
+The key historical nuance is that the modern VIS label `FivbWorld` should **not** be applied retrospectively as though the same World Ranking formula existed throughout the entire Type 9 archive.
 
-The archive spans 2008 onward for Types 6 and 10, while Type 9 begins in late 2014.
+## Operational analysis convention
+
+Use the following rule in future analyses.
+
+### Before 2017-02-13
+
+- Type 10 is the preferred historical team-ranking measure when a ranking covariate or team ordering is needed.
+- Type 9 observations from 2014-2016 should be retained for historical research, but should be labeled as the historical team-results / Season Ranking era rather than as the modern World Ranking.
+- Do not use those early Type 9 values to answer questions such as `Who was #1 in the modern World Ranking?`.
+
+### On or after 2017-02-13
+
+- Type 9 is the validated FIVB World Ranking: best eight performances achieved together as a team over a rolling 365-day period.
+- Type 10 remains available and should be retained alongside World when useful because it is a distinct PlayerSum / entry-style ranking.
+- Analyses may therefore use both `world_rank` and `team_rank` from this date onward.
+
+### Olympic Ranking
+
+Olympic Ranking is a fourth, separate qualification product. It uses Olympic-cycle-specific windows and result-count rules and should not be substituted with either Type 9 or Type 10.
+
+See [Type 9 Transition: Season Ranking to Modern World Ranking](type9-transition-investigation.md) for the detailed cutoff evidence and [Olympic Ranking History](olympic-ranking-history.md) for Olympic-cycle rules.
 
 ## What VIS itself tells us
 
-### Ranking types
-
 The VIS SDK identifies:
 
-- Type 6 as `FivbPlayer` — FIVB Athlete
-- Type 9 as `FivbWorld` — FIVB World
-- Type 10 as `FivbTeam` — FIVB Team
+- Type 6 as `FivbPlayer` — FIVB Athlete;
+- Type 9 as `FivbWorld` — FIVB World;
+- Type 10 as `FivbTeam` — FIVB Team.
 
 Source:
 
 https://www.fivb.org/VisSDK/Fivb.Vis.Model/Fivb.Vis.Model~Fivb.Vis.Beach.BeachRankingType.html
 
-### Ranking subtypes
+VIS also defines the ranking subtype:
 
-VIS describes the subtype as the unit used for ranking points:
-
-- SubType 1 `Player` — player ranking
-- SubType 2 `PlayerSum` — team ranked by the sum of both players' points
-- SubType 3 `Team` — team ranked by points earned together
+- SubType 1 `Player` — player ranking;
+- SubType 2 `PlayerSum` — team ranked by the sum of both players' points;
+- SubType 3 `Team` — team ranked by points earned together.
 
 Source:
 
 https://www.fivb.org/VisSDK/Fivb.Vis.Model/Fivb.Vis.Model~Fivb.Vis.Beach.BeachRankingSubType.html
 
-This means Type 9 and Type 10 are structurally different ranking concepts even when the same pair appears in both.
+These definitions establish that Type 9 and Type 10 are structurally different calculations even when the same pair appears in both.
 
-## Important 2016 terminology
+## Archive-wide empirical findings
 
-The 2016 FIVB Beach Volleyball Sports Regulations describe several different ranking/points systems operating simultaneously.
+### Type 10 arithmetic is exact
 
-### Athlete Entry Points
+Across all 1,844,305 archived Type 10 rows:
 
-The best six of the last eight eligible FIVB results in the relevant 365-day window were used for athlete entry points.
+```text
+Type 10 Points = PointsPlayer1 + PointsPlayer2
+```
 
-### FIVB Seeding Points
+The equality holds for 100% of rows with both components populated.
 
-FIVB Seeding Points were the sum of the two individual athletes' Entry Points.
+This confirms that Type 10 is a PlayerSum ranking rather than an independent partnership-results ranking.
 
-### Individual Technical Ranking
+### Type 10 is overwhelmingly linked to Type 6 player values
 
-The Individual Technical Ranking ranked individual players using the total FIVB Ranking points earned in recognized events over a 365-day period.
+Matching each Type 10 player component to that player's Type 6 value on the same date produces near-exact agreement throughout the archive and essentially exact agreement in the modern era. Historical deviations, especially around 2017, are preserved as diagnostics rather than silently removed.
 
-### FIVB Season's Ranking
+### World and Team are not interchangeable
 
-The season ranking ranked teams using their ten best results during the season and determined the Team of the Year.
+On dates where Type 9 and Type 10 coexist, they usually contain nearly the same universe of pairs but order those pairs differently.
 
-### Olympic Ranking
+The audit shows:
 
-The Rio Olympic Ranking used the 12 best performances achieved together as a team during the fixed Olympic qualification window.
+- pair overlap is usually very high;
+- rank correlation is high but not perfect;
+- exact positions are rare;
+- exact points are uncommon;
+- top-10 composition and the #1 pair often differ.
 
-Source:
-
-https://www.fivb.org/EN/BeachVolleyball/Document/FIVB_BVB_2016-Sport-Regulations_v10.pdf
-
-This is strong evidence that historical FIVB beach volleyball had multiple legitimate ranking constructs at the same time. Therefore, a VIS ranking should not be identified solely from its generic word `Team` or `World` without empirical validation.
-
-## Direct February 2017 evidence for the three ranking products
-
-A contemporaneous VolleyMob article published on February 15, 2017 reproduced the FIVB Beach World Rankings as of February 13, 2017 and linked directly to six separate FIVB ranking pages:
-
-- Men's World Ranking — `WRanking_M.asp`
-- Women's World Ranking — `WRanking_W.asp`
-- Men's Individual Entry Ranking — `PlayersRanking_M.asp`
-- Women's Individual Entry Ranking — `PlayersRanking_W.asp`
-- Men's Team Entry Ranking — `TeamsRanking_M.asp`
-- Women's Team Entry Ranking — `TeamsRanking_W.asp`
-
-Article:
-
-https://volleymob.com/fivb-updates-beach-world-rankings-ft-lauderdale-major/
-
-The article also explains the conceptual distinction:
-
-- entry rankings allocate points to individual athletes and use those values for entry-related team constructions;
-- World Rankings are based on actual current pairs and points earned together in competition.
-
-The old FIVB ranking page still exposes the same navigation structure:
-
-- FIVB World Ranking — Men / Women
-- Entry Rankings — Teams — Men / Women
-- Entry Rankings — Players — Men / Women
-- Provisional Olympic Ranking — Men / Women
-
-Example surviving FIVB page:
-
-https://www.fivb.org/EN/BeachVolleyball/WRanking_W.asp
-
-This gives us a strong proposed mapping for the 2017-era system:
-
-| VIS archive product | Historical public product |
-| --- | --- |
-| Type 9 / SubType 3 — FIVB World / Team | FIVB World Ranking |
-| Type 6 / SubType 1 — FIVB Athlete / Player | Individual / Player Entry Ranking |
-| Type 10 / SubType 2 — FIVB Team / PlayerSum | Team Entry Ranking |
-
-This mapping should now be validated numerically against the February 13, 2017 published table before being treated as fully confirmed.
-
-The published men's World Ranking top three on February 13, 2017 were:
-
-1. Lucena / Dalhausser (USA) — 4,920 points
-2. Samoilovs / Smedins (LAT) — 4,650 points
-3. Alison / Bruno Schmidt (BRA) — 4,620 points
-
-The published women's top three were:
-
-1. Larissa / Talita (BRA) — 5,420 points
-2. Walsh Jennings / Ross (USA) — 5,160 points
-3. Ludwig / Walkenhorst (GER) — 5,080 points
-
-This date is therefore one of our best exact external-validation targets.
-
-## Important 2017-2018 transition clue
-
-A Volleyball Canada report from FIVB Beach Volleyball Commission discussions stated that beginning with the updated system there would be:
-
-> only one ranking – the World Ranking: the best 8 results in the past 365 days
-
-and noted that other rankings would still be obtainable through VIS.
-
-Source:
-
-https://volleyball.ca/uploads/About/Governance/Annual_reports/VC_Annual_Report2017-18_EN.pdf
-
-This is especially important for our archive. It suggests that from roughly the 2018 rules transition onward, the public-facing `World Ranking` became a single clearly defined product, while other technical/entry/team products continued to exist internally in VIS.
-
-## VIS ranking infrastructure history
-
-VIS release notes show that the modern beach-ranking infrastructure was introduced around February 2017. The release notes record new `BeachRanking`, `BeachRankingEntry`, ranking calculation classes and ranking types, with `FivbPlayer` and `FivbTeam` values added in February 2017.
-
-Source:
-
-https://www.fivb.org/VisSDK/Release%20Notes%20%2810xx%29.html
-
-This raises an important historical interpretation question:
-
-**Are the 2008-2016 Type 6 and Type 10 objects native historical ranking products, or were older ranking snapshots imported/backfilled into the newer VIS ranking schema?**
-
-The data can still be completely valid even if the modern type labels were assigned retrospectively. We should therefore distinguish:
-
-1. what the numbers mathematically represent;
-2. what FIVB called that calculation at the time; and
-3. what label the modern VIS API now gives the archived object.
-
-## Public-history clues to validate against
-
-### 2015 World Tour / season history
-
-FIVB historical material identifies Aleksandrs Samoilovs / Janis Smedins as the 2013 and 2014 men's World Ranking / World Tour season champions and Alison / Bruno Schmidt as the 2015 men's champion. Barbara / Agatha are listed as the 2015 women's champion.
-
-Useful source:
-
-https://www.fivb.org/EN/BeachVolleyball/Competitions/WorldTour/2016/Handbook_2016/FIVB-BVB-Handbook2016-CH01_v02.pdf
-
-This gives us end-of-season validation targets, though a season ranking should not automatically be assumed to equal a rolling World Ranking.
-
-### Modern World Ranking formula
-
-Modern Volleyball World material explicitly defines the FIVB Beach Volleyball World Ranking as the eight best performances as a team over the prior 365 days.
-
-Example source:
-
-https://en.volleyballworld.com/beachvolleyball/world-ranking/ranking-explained
-
-### Modern entry / technical points remain separate
-
-Current Volleyball World tournament entry lists still expose distinct columns such as Entry Points, Entry Technical Points, Seed Points and Seed Technical Points. That reinforces the fact that public World Ranking position is not the only points construct in the system.
-
-Example:
-
-https://en.volleyballworld.com/beachvolleyball/competitions/beach-pro-tour/2026/elite16/hamburg-ger/teams/men/main-draw
-
-## Empirical audit plan
+This is consistent with the two systems using the same athlete population but different calculations.
 
 Run:
 
@@ -195,127 +98,82 @@ Run:
 source("scripts/06_audit_ranking_systems.R")
 ```
 
-The script produces local files in `data/audit/`.
+for the current archive-wide diagnostics.
 
-### Test 1 — Type 10 arithmetic
+## Why the 2015 Type 9 ranking looked strange
 
-Check whether:
+A March 23, 2015 Type 9 snapshot is headed by several Venezuelan, Argentine, and Chilean teams rather than the partnerships one would expect from a rolling global World Ranking.
 
-```text
-Type 10 Points = PointsPlayer1 + PointsPlayer2
+That snapshot should **not** be interpreted as evidence that the archive is wrong.
+
+The 2016-era FIVB regulations explicitly define a **Season's Ranking** based on a team's ten best results during the season at FIVB-recognized events. Because recognized continental events could award ranking points, an early-season table could favor teams that had already accumulated several continental results while many elite global teams had barely started their international season.
+
+Source:
+
+https://www.fivb.org/EN/BeachVolleyball/Document/FIVB_BVB_2016-Sport-Regulations_v10.pdf
+
+This behavior is one of the strongest empirical reasons not to apply the later best-8 / rolling-365 World Ranking interpretation to Type 9 before 2017.
+
+## The 2016-2017 transition
+
+### 2016 system
+
+The 2016 regulations define the FIVB Season's Ranking as the ten best team results over the season.
+
+### Archive boundary
+
+The final pre-transition Type 9 snapshots occur on 2016-12-31. There are no January 2017 Type 9 snapshots. The series resumes for both genders on 2017-02-13 and then continues weekly.
+
+### VIS infrastructure change
+
+VIS release notes document a substantial new beach-ranking engine in January-February 2017, including new ranking parameters, best-result calculation classes, generic `BeachRanking` objects, and the `GetBeachRanking` / `GetBeachRankingList` requests.
+
+Source:
+
+https://www.fivb.org/VisSDK/Release%20Notes%20%2810xx%29.html
+
+The old VIS data model separately contained `BeachTeamSeasonRanking`, supporting the interpretation that older team-season data were represented differently before the modern generic ranking framework.
+
+### 2017 system
+
+The 2017 FIVB regulations define the FIVB World Ranking as the ranking points earned at the **eight best performances as a team over a 365-day period**.
+
+Source:
+
+https://www.fivb.org/EN/BeachVolleyball/Document/2017FIVB_BVB_Sports_Regulations_Final_20170822.pdf
+
+### External validation on 2017-02-13
+
+A contemporaneous February 15, 2017 article reproduced the official February 13 FIVB World Rankings and separately linked World, Individual Entry, and Team Entry rankings.
+
+Source:
+
+https://volleymob.com/fivb-updates-beach-world-rankings-ft-lauderdale-major/
+
+Our archived Type 9 snapshot reproduces that published World Ranking subject only to tie-display and historical name-format differences. This directly validates Type 9 as the public modern World Ranking by 2017-02-13.
+
+Run:
+
+```r
+source("scripts/07_validate_feb2017_world_ranking.R")
 ```
 
-If true across the archive, that directly confirms the `PlayerSum` interpretation.
+for the reproducible comparison.
 
-### Test 2 — Type 6 to Type 10 linkage
+## Historical terminology matters
 
-For each player in a Type 10 team, match the player ID to the Type 6 ranking on the same date and test whether:
+The archive is valuable precisely because modern VIS type names do not necessarily describe what FIVB publicly called the same underlying calculation in every historical era.
 
-```text
-Type 10 PointsPlayer1 = that athlete's Type 6 Points
-Type 10 PointsPlayer2 = that athlete's Type 6 Points
-```
+For each ranking observation, keep three concepts separate:
 
-If this is nearly or exactly 100%, then Type 10 is mechanically derived from Type 6.
+1. **VIS representation** — the current Type/SubType used by the API;
+2. **mathematical calculation** — player, PlayerSum, team-together, season-based, rolling window, etc.;
+3. **historical public name and purpose** — World Ranking, Team Entry Ranking, Season's Ranking, Olympic Ranking, seeding, or another technical product.
 
-This would be an extremely important finding because it would tell us that Type 10 is not an independent results-based team ranking at all; it is a pairing of two individual ranking values.
+The repository should prefer validated historical interpretation over the modern API label whenever those differ.
 
-### Test 3 — Type 9 vs Type 10
+## Remaining historical questions
 
-On every date where both rankings exist, compare pairs using stable VIS player IDs.
+The main unresolved question is not the modern World Ranking cutoff; that is sufficiently validated for project use.
 
-Metrics:
-
-- percentage of Type 9 pairs appearing in Type 10;
-- top-10 overlap;
-- whether the #1 pair is the same;
-- Spearman correlation of pair positions;
-- percentage of overlapping pairs with exactly the same position;
-- percentage with exactly the same points.
-
-This will show whether the two products are sometimes similar, highly correlated, or genuinely divergent.
-
-### Test 4 — Historical sample snapshots
-
-The audit automatically selects the closest common Type 9 / Type 10 snapshots to:
-
-- 2015-03-23
-- 2016-06-13
-- 2018-01-01
-- 2021-06-14
-- 2024-06-10
-- 2026-08-31
-
-For each gender it exports the top 20 from both rankings side by side.
-
-These dates are intended to sample different regulatory eras and Olympic-cycle landmarks.
-
-### Test 5 — Exact February 13, 2017 external match
-
-This should be treated as a high-priority exact validation because a complete contemporaneous top-10 table survives online.
-
-For men, Type 9 should begin:
-
-1. Lucena / Dalhausser — 4,920
-2. Samoilovs / Smedins — 4,650
-3. Alison / Bruno Schmidt — 4,620
-
-For women, Type 9 should begin:
-
-1. Larissa / Talita — 5,420
-2. Walsh Jennings / Ross — 5,160
-3. Ludwig / Walkenhorst — 5,080
-
-If the VIS Type 9 snapshot matches those names and points exactly, the Type 9 ↔ public World Ranking mapping is directly confirmed for that date.
-
-## External validation strategy
-
-For selected snapshots, locate a contemporaneous posted ranking or authoritative description from:
-
-1. FIVB / Volleyball World pages and PDFs;
-2. Olympic qualification documents;
-3. World Tour handbooks and sports regulations;
-4. national federation material that reproduces FIVB rankings;
-5. archived pages or the Internet Archive when original FIVB pages are no longer live.
-
-For every external validation, record:
-
-- published date;
-- what the source calls the ranking;
-- ranking formula stated by the source, if any;
-- top teams and points;
-- which VIS product matches it;
-- whether the match is exact or approximate.
-
-## Working interpretation by era
-
-These should continue to be updated as the empirical tests accumulate.
-
-### Type 6 — FIVB Athlete / Player
-
-For the 2017-era system, strong documentary evidence indicates this corresponds to the individual / player Entry Ranking. The exact calculation and terminology before and after that period may change by era and should be reconstructed from regulations.
-
-### Type 10 — FIVB Team / PlayerSum
-
-For the 2017-era system, strong documentary evidence indicates this corresponds to the Team Entry Ranking. VIS defines it as the sum of both players' points. The archive audit will determine whether its player components are mechanically identical to Type 6 on the same date.
-
-### Type 9 — FIVB World / Team
-
-Strong documentary evidence identifies this as the public FIVB World Ranking in the 2017-era system, where actual pairs were ranked on points earned together. The 2014-2016 portion still deserves special historical validation because the modern VIS ranking schema was introduced around 2017 and may represent earlier data retrospectively.
-
-### Olympic Ranking
-
-Separate from all three products above and should eventually be archived through `GetBeachOlympicSelectionRanking`.
-
-## Goal
-
-The end product should be a year-by-year ranking dictionary that answers:
-
-- What rankings existed?
-- What was each one called publicly?
-- What was its formula?
-- What was it used for: entry, seeding, technical ranking, World Ranking, season championship or Olympic qualification?
-- Which modern VIS Type/SubType contains it?
-- Was the historical data native or retrospectively represented in the newer VIS schema?
-
-The archive is valuable precisely because it gives us enough historical snapshots to answer these questions empirically rather than relying only on current naming conventions.
+The remaining work is to classify the exact public terminology and formulas of pre-2017 sub-eras, especially the 2014-2016 Type 9 series. Those observations remain useful historical data, but they should not be treated as modern World Ranking observations unless a specific date is independently validated.
