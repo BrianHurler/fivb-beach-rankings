@@ -10,6 +10,11 @@ checkpoint_file <- file.path(discovery_dir, "olympic_reference_date_scan.csv")
 reference_dates_file <- file.path(discovery_dir, "olympic_reference_dates.csv")
 summary_file <- file.path(discovery_dir, "olympic_reference_date_summary.csv")
 
+# Console/checkpoint cadence. Keeping these fairly frequent makes long exhaustive
+# scans easy to monitor and limits how much work is repeated after Ctrl+C.
+progress_every <- 10L
+checkpoint_every <- 10L
+
 # Scan the full Olympic-ranking window one calendar date at a time because VIS
 # exposes ReferenceDate but no Olympic-ranking list endpoint. This is deliberately
 # exhaustive and resumable: an exact date with no calculated ranking returns an
@@ -116,10 +121,12 @@ pending <- scan_plan |>
   filter(!key %in% done_keys) |>
   select(-key)
 
+completed_before_run <- nrow(scan_plan) - nrow(pending)
+
 message(
   "Olympic reference-date discovery: ",
   nrow(scan_plan), " total date/gender probes; ",
-  nrow(scan_plan) - nrow(pending), " already completed; ",
+  completed_before_run, " already completed; ",
   nrow(pending), " pending."
 )
 
@@ -149,14 +156,36 @@ if (nrow(pending) > 0L) {
         " | ", row$reference_date,
         " | rows=", result$rows[[1]]
       )
-    } else if (i %% 50L == 0L) {
+    }
+
+    if (i %% progress_every == 0L || i == nrow(pending)) {
+      completed_now <- completed_before_run + i
+      pct_complete <- 100 * completed_now / nrow(scan_plan)
+      found_now <- scan_results |>
+        filter(ok, !is.na(rows), rows > 0L) |>
+        nrow()
+      failures_now <- scan_results |>
+        filter(!ok) |>
+        nrow()
+
       message(
-        "Progress: ", i, "/", nrow(pending),
-        " pending probes checked in this run."
+        sprintf(
+          "STATUS | %d/%d complete (%.1f%%) | this run %d/%d | found %d snapshots | failures %d | now GamesYear=%d %s %s",
+          completed_now,
+          nrow(scan_plan),
+          pct_complete,
+          i,
+          nrow(pending),
+          found_now,
+          failures_now,
+          row$games_year,
+          row$gender,
+          as.character(row$reference_date)
+        )
       )
     }
 
-    if (i %% 25L == 0L || i == nrow(pending)) {
+    if (i %% checkpoint_every == 0L || i == nrow(pending)) {
       write_checkpoint(scan_results)
     }
 
