@@ -12,7 +12,6 @@ dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
 # Tokyo remained GamesYear = 2020 even though the final ranking was published in 2021.
 cycle_targets <- tibble::tribble(
   ~games_year, ~expected_final_date,
-  2008L, as.Date("2008-07-21"),
   2012L, as.Date("2012-06-18"),
   2016L, as.Date("2016-06-13"),
   2020L, as.Date("2021-06-14"),
