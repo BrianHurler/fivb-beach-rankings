@@ -1,16 +1,16 @@
 # FIVB Beach Rankings Archive
 
-R tooling to inventory, download, preserve, and parse historical FIVB Beach Volleyball rankings from the VIS web service.
+R tooling to inventory, download, preserve, parse, and investigate historical FIVB Beach Volleyball rankings from the VIS web service.
 
 ## Current scope
 
-The initial archive targets rankings from `2008-01-01` onward for:
+The archive targets rankings from `2008-01-01` onward for:
 
-- Type 6 / SubType 1 — FIVB Athlete
-- Type 9 / SubType 3 — FIVB World
-- Type 10 / SubType 2 — FIVB Team
+- Type 6 / SubType 1 — FIVB Athlete / Player
+- Type 9 / SubType 3 — FIVB World / Team
+- Type 10 / SubType 2 — FIVB Team / PlayerSum
 
-The VIS ranking inventory currently exposes thousands of historical ranking snapshots, including pre-2017 records.
+The completed archive contains 3,663 ranking snapshots and more than 6 million ranking-entry rows from 2008-03-31 through 2026-08-31.
 
 A validated `GetBeachRanking` response has:
 
@@ -18,11 +18,32 @@ A validated `GetBeachRanking` response has:
 - ranking metadata (`No`, `Date`, `Gender`, `Type`, `SubType`, `Version`) on the root
 - one child `<Entry>` element per ranking row
 
-For example, men's FIVB World ranking No. 774 (2015-03-23) returns 68 `<Entry>` rows.
+## Important analysis convention
+
+**Do not treat every VIS Type 9 object as the modern FIVB World Ranking.**
+
+Our historical validation supports the following operational rule:
+
+- **Before 2017-02-13:** Type 9 belongs to the historical team-results / Season Ranking era and should not be labeled as the modern World Ranking.
+- **On or after 2017-02-13:** Type 9 is the validated FIVB World Ranking: the best eight performances achieved together as a team over a rolling 365-day period.
+- **Type 10:** Team / PlayerSum ranking. Its points equal `PointsPlayer1 + PointsPlayer2`; it is distinct from Type 9.
+
+For future analyses:
+
+- when a validated modern World Ranking is available (`ranking_date >= 2017-02-13`), retain **both World (Type 9) and Team (Type 10)** because they measure different ranking constructs;
+- before that cutoff, use **Team (Type 10)** as the historical ranking measure when needed, clearly labeled as Team rather than World;
+- Olympic Ranking is a separate qualification product and should not be substituted with either Type 9 or Type 10.
+
+Why the cutoff matters: an apparently strange Type 9 table from 2015 is consistent with the historical Season Ranking system rather than the later rolling-365 World Ranking. The archive stops its pre-2017 Type 9 sequence on 2016-12-31, has no January 2017 Type 9 snapshots, and resumes on 2017-02-13. That February 13 snapshot has been directly validated against a contemporaneously published FIVB World Ranking.
+
+See [Type 9 Transition: Season Ranking to Modern World Ranking](docs/type9-transition-investigation.md) for the full evidence and [Ranking System Investigation](docs/ranking-system-investigation.md) for the broader ranking taxonomy.
 
 ## Research notes
 
-- [Olympic Ranking History and Relationship to VIS Rankings](docs/olympic-ranking-history.md) — documents the London 2012, Rio 2016, Tokyo 2020/21, and Paris 2024 Olympic Ranking rules; distinguishes Olympic qualification from ordinary FIVB World/Team/Athlete rankings; and lays out the proposed Olympic Selection Ranking archive and validation work.
+- [Type 9 Transition: Season Ranking to Modern World Ranking](docs/type9-transition-investigation.md) — documents the validated `2017-02-13` operational cutoff and the evidence for the change from the historical season-based team ranking to the modern best-8 / rolling-365 World Ranking.
+- [Ranking System Investigation](docs/ranking-system-investigation.md) — documents the relationship among Type 6, Type 9, and Type 10 and the empirical audit results.
+- [Olympic Ranking History and Relationship to VIS Rankings](docs/olympic-ranking-history.md) — documents London 2012, Rio 2016, Tokyo 2020/21, and Paris 2024 Olympic Ranking rules and the distinction between Olympic qualification and ordinary FIVB rankings.
+- [Empirical Ranking Findings](docs/empirical-ranking-findings.md) — records archive-wide numerical findings from the ranking audits.
 
 ## Project structure
 
@@ -39,12 +60,20 @@ scripts/
   03_download_archive.R
   04_parse_archive.R
   05_query_world_ranking.R
+  06_audit_ranking_systems.R
+  07_validate_feb2017_world_ranking.R
+  08_audit_type9_world_transition.R
 docs/
+  ranking-system-investigation.md
+  empirical-ranking-findings.md
+  type9-transition-investigation.md
   olympic-ranking-history.md
 data/
   inventory/             # generated inventory files (ignored)
   raw/                   # raw ranking XML (ignored)
   parsed/                # parsed datasets (ignored)
+  audit/                 # generated audit outputs (ignored)
+  validation/            # generated validation outputs (ignored)
   logs/                  # preflight + download logs (ignored)
 ```
 
@@ -62,19 +91,19 @@ install.packages(c("httr2", "xml2", "dplyr", "purrr", "tibble"))
 source("scripts/01_build_inventory.R")
 ```
 
-2. Inspect the known men's FIVB World ranking for 2015-03-23 (`No = 774`):
+2. Inspect a known historical Type 9 ranking (`No = 774`, 2015-03-23):
 
 ```r
 source("scripts/02_inspect_ranking_774.R")
 ```
+
+This object is useful for validating XML structure, but because it predates `2017-02-13`, it should not be interpreted as the modern best-8 / 365-day World Ranking.
 
 3. Validate one historical example for every ranking shape in the archive (men/women x Types 6, 9, 10):
 
 ```r
 source("scripts/02b_validate_archive_samples.R")
 ```
-
-The bulk archive script will not run unless all six representative rankings pass.
 
 4. Download the complete archive:
 
@@ -90,12 +119,26 @@ Each HTTP-200 response is validated as the requested `<BeachRanking>` with at le
 source("scripts/04_parse_archive.R")
 ```
 
-6. Query the parsed FIVB World series:
+6. Audit the relationships among Athlete, Team, and World products:
 
 ```r
-source("scripts/05_query_world_ranking.R")
+source("scripts/06_audit_ranking_systems.R")
+```
+
+7. Validate the February 13, 2017 Type 9 snapshot against a contemporaneously published FIVB World Ranking:
+
+```r
+source("scripts/07_validate_feb2017_world_ranking.R")
+```
+
+8. Audit the Type 9 transition around the 2016-2017 boundary:
+
+```r
+source("scripts/08_audit_type9_world_transition.R")
 ```
 
 ## Design principle
 
 Raw VIS XML is treated as the archival source of truth. Parsing is intentionally separate from acquisition so the archive can be reprocessed later without repeatedly querying VIS.
+
+Historical naming is treated separately from modern VIS type labels. A current VIS label does not automatically imply that the same public ranking formula or terminology applied to every archived year.
