@@ -370,18 +370,23 @@ utils::write.csv(
 sample_top20 <- pmap_dfr(
   sample_plan,
   function(target_date, ranking_gender, gender_name, ranking_date) {
+    target_date_value <- target_date
+    gender_value <- ranking_gender
+    gender_label <- gender_name
+    ranking_date_value <- ranking_date
+
     w <- world |>
       filter(
-        .data$ranking_date == ranking_date,
-        .data$ranking_gender == ranking_gender
+        .data$ranking_date == .env$ranking_date_value,
+        .data$ranking_gender == .env$gender_value
       ) |>
       arrange(world_position) |>
       slice_head(n = 20)
 
     t <- team |>
       filter(
-        .data$ranking_date == ranking_date,
-        .data$ranking_gender == ranking_gender
+        .data$ranking_date == .env$ranking_date_value,
+        .data$ranking_gender == .env$gender_value
       ) |>
       arrange(team_position) |>
       slice_head(n = 20)
@@ -392,8 +397,8 @@ sample_top20 <- pmap_dfr(
       by = c("ranking_date", "ranking_gender", "pair_key")
     ) |>
       mutate(
-        target_date = target_date,
-        gender_name = gender_name,
+        target_date = .env$target_date_value,
+        gender_name = .env$gender_label,
         .before = 1
       ) |>
       arrange(
