@@ -4,6 +4,8 @@ library(tibble)
 
 source("R/vis_request.R")
 
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
 OLYMPIC_RANKING_FIELDS <- c(
   "GamesYear",
   "Position",
@@ -63,7 +65,7 @@ parse_olympic_ranking_body <- function(body,
   if (length(error_nodes) > 0L) {
     stop(
       "VIS returned an Olympic ranking error:\n",
-      paste(xml2::as_list(error_nodes), collapse = "\n"),
+      paste(vapply(error_nodes, xml2::as_xml_document, character(1)), collapse = "\n"),
       call. = FALSE
     )
   }
@@ -106,10 +108,15 @@ parse_olympic_ranking_body <- function(body,
   )
 
   out <- out |>
-    dplyr::mutate(dplyr::across(dplyr::all_of(numeric_fields), readr::parse_number))
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::all_of(numeric_fields),
+        ~ suppressWarnings(as.numeric(.x))
+      )
+    )
 
   list(
-    root_attributes = xml2::xml_attrs(ranking_node),
+    root_attributes = if (!inherits(ranking_node, "xml_missing")) xml2::xml_attrs(ranking_node) else character(),
     entries = out,
     body = body
   )
@@ -146,5 +153,3 @@ get_olympic_ranking <- function(gender,
     requested_reference_date = if (is.null(reference_date)) as.Date(NA) else as.Date(reference_date)
   )
 }
-
-`%||%` <- function(x, y) if (is.null(x)) y else x
