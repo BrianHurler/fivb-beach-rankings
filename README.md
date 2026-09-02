@@ -12,14 +12,23 @@ The archive targets rankings from `2008-01-01` onward for:
 
 The completed general-ranking archive contains 3,663 ranking snapshots and more than 6 million ranking-entry rows from 2008-03-31 through 2026-08-31.
 
-A separate Olympic Selection Ranking archive is being built for:
+A separate Olympic Selection Ranking archive covers:
 
 - London 2012
 - Rio 2016
 - Tokyo 2020 / held in 2021
 - Paris 2024
 
-The live VIS API has been confirmed to retain Olympic Selection Rankings for all four cycles.
+The live VIS API has been confirmed to retain Olympic Selection Rankings for all four cycles. Exhaustive `ReferenceDate` discovery found **417 gender-specific snapshots across 211 distinct dates**:
+
+| GamesYear | Men snapshots | Women snapshots | First retained date | Final retained date |
+|---:|---:|---:|---|---|
+| 2012 | 25 | 24 | 2011-05-08 | 2012-06-18 |
+| 2016 | 38 | 38 | 2015-07-20 | 2016-06-12 |
+| 2020 | 81 | 81 | 2018-09-17 | 2021-06-14 |
+| 2024 | 65 | 65 | 2023-02-06 | 2024-06-10 |
+
+London is the only cycle with some gender-specific reference dates; Rio, Tokyo, and Paris have perfectly aligned men/women snapshot dates. The retained series is not strictly Monday-only, so the exhaustive date scan is preserved as part of the archive methodology.
 
 A validated `GetBeachRanking` response has:
 
@@ -77,6 +86,8 @@ scripts/
   08_audit_type9_world_transition.R
   09_probe_olympic_rankings.R
   10_discover_olympic_reference_dates.R
+  11_download_olympic_archive.R
+  12_parse_olympic_archive.R
 docs/
   ranking-system-investigation.md
   empirical-ranking-findings.md
@@ -90,6 +101,9 @@ data/
   validation/            # generated validation outputs (ignored)
   olympic_probe/         # generated Olympic probe outputs (ignored)
   olympic_discovery/     # generated Olympic reference-date discovery (ignored)
+  olympic/raw/           # full Olympic ranking XML archive (ignored)
+  olympic/parsed/        # parsed Olympic ranking datasets (ignored)
+  olympic/logs/          # Olympic download manifest/logs (ignored)
   logs/                  # preflight + download logs (ignored)
 ```
 
@@ -165,7 +179,28 @@ source("scripts/09_probe_olympic_rankings.R")
 source("scripts/10_discover_olympic_reference_dates.R")
 ```
 
-Script 10 is checkpointed and resumable because VIS does not expose an Olympic-ranking list endpoint; it must probe exact calendar dates to discover stored snapshots.
+Script 10 is checkpointed and resumable because VIS does not expose an Olympic-ranking list endpoint; it must probe exact calendar dates to discover stored snapshots. The completed discovery contains 417 gender-specific snapshots.
+
+11. Download the full Olympic Ranking XML for exactly those discovered snapshots:
+
+```r
+source("scripts/11_download_olympic_archive.R")
+```
+
+Script 11 validates any existing raw file before skipping it, requests the complete Olympic field set for missing snapshots, writes each response only after validation, and is naturally resumable from the raw archive. It downloads 417 snapshots rather than repeating the full date scan.
+
+12. Parse the Olympic raw archive into analysis-ready RDS/CSV files:
+
+```r
+source("scripts/12_parse_olympic_archive.R")
+```
+
+Primary parsed output:
+
+```text
+data/olympic/parsed/fivb_olympic_ranking_entries.rds
+data/olympic/parsed/fivb_olympic_ranking_entries.csv
+```
 
 ## Design principle
 
