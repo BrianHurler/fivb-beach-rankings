@@ -8,14 +8,17 @@ probe_dir <- file.path("data", "olympic_probe")
 raw_dir <- file.path(probe_dir, "raw")
 dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Expected final Olympic-ranking dates from the qualification systems.
-# Tokyo remained GamesYear = 2020 even though the final ranking was published in 2021.
+# Expected final Olympic-ranking reference dates from the qualification systems.
+# ReferenceDate is the date of the ranking calculation, which can differ from
+# the following-day public announcement date. Rio's qualification window ended
+# on 2016-06-12 and FIVB published the final list on 2016-06-13.
+# Tokyo remained GamesYear = 2020 even though the final ranking was in 2021.
 cycle_targets <- tibble::tribble(
-  ~games_year, ~expected_final_date,
-  2012L, as.Date("2012-06-18"),
-  2016L, as.Date("2016-06-13"),
-  2020L, as.Date("2021-06-14"),
-  2024L, as.Date("2024-06-10")
+  ~games_year, ~expected_final_reference_date, ~published_final_date,
+  2012L, as.Date("2012-06-18"), as.Date("2012-06-18"),
+  2016L, as.Date("2016-06-12"), as.Date("2016-06-13"),
+  2020L, as.Date("2021-06-14"), as.Date("2021-06-14"),
+  2024L, as.Date("2024-06-10"), as.Date("2024-06-11")
 )
 
 probe_one <- function(games_year, gender, reference_date = NULL, label) {
@@ -46,6 +49,7 @@ probe_one <- function(games_year, gender, reference_date = NULL, label) {
         rows = NA_integer_,
         games_year_in_entries = NA_character_,
         selected_rows = NA_integer_,
+        already_qualified_other_pathway_rows = NA_integer_,
         root_attributes = NA_character_,
         error = conditionMessage(result)
       ),
@@ -70,6 +74,12 @@ probe_one <- function(games_year, gender, reference_date = NULL, label) {
 
   selected_rows <- if (nrow(entries) > 0L && "Status" %in% names(entries)) {
     sum(entries$Status %in% c(1, 2, 3), na.rm = TRUE)
+  } else {
+    0L
+  }
+
+  already_qualified_rows <- if (nrow(entries) > 0L && "Status" %in% names(entries)) {
+    sum(entries$Status == 9, na.rm = TRUE)
   } else {
     0L
   }
@@ -99,6 +109,7 @@ probe_one <- function(games_year, gender, reference_date = NULL, label) {
       rows = nrow(entries),
       games_year_in_entries = games_year_values,
       selected_rows = selected_rows,
+      already_qualified_other_pathway_rows = already_qualified_rows,
       root_attributes = root_attr_text,
       error = NA_character_
     ),
@@ -119,7 +130,7 @@ probe_plan <- bind_rows(
     transmute(
       games_year,
       gender,
-      reference_date = expected_final_date,
+      reference_date = expected_final_reference_date,
       probe = "expected_final"
     ),
   cycle_gender |>
