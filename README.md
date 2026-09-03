@@ -28,6 +28,8 @@ The live VIS API has been confirmed to retain Olympic Selection Rankings for all
 | 2020 | 81 | 81 | 2018-09-17 | 2021-06-14 |
 | 2024 | 65 | 65 | 2023-02-06 | 2024-06-10 |
 
+All **417/417** discovered Olympic snapshots have been downloaded successfully and preserved as raw XML. The parsed Olympic archive contains **134,494 ranking-entry rows**.
+
 London is the only cycle with some gender-specific reference dates; Rio, Tokyo, and Paris have perfectly aligned men/women snapshot dates. The retained series is not strictly Monday-only, so the exhaustive date scan is preserved as part of the archive methodology.
 
 A validated `GetBeachRanking` response has:
@@ -88,6 +90,7 @@ scripts/
   10_discover_olympic_reference_dates.R
   11_download_olympic_archive.R
   12_parse_olympic_archive.R
+  13_validate_olympic_archive.R
 docs/
   ranking-system-investigation.md
   empirical-ranking-findings.md
@@ -103,6 +106,7 @@ data/
   olympic_discovery/     # generated Olympic reference-date discovery (ignored)
   olympic/raw/           # full Olympic ranking XML archive (ignored)
   olympic/parsed/        # parsed Olympic ranking datasets (ignored)
+  olympic/qa/            # Olympic archive QA outputs (ignored)
   olympic/logs/          # Olympic download manifest/logs (ignored)
   logs/                  # preflight + download logs (ignored)
 ```
@@ -187,7 +191,7 @@ Script 10 is checkpointed and resumable because VIS does not expose an Olympic-r
 source("scripts/11_download_olympic_archive.R")
 ```
 
-Script 11 validates any existing raw file before skipping it, requests the complete Olympic field set for missing snapshots, writes each response only after validation, and is naturally resumable from the raw archive. It downloads 417 snapshots rather than repeating the full date scan.
+Script 11 validates any existing raw file before skipping it, requests the complete Olympic field set for missing snapshots, writes each response only after validation, and is naturally resumable from the raw archive. The completed download contains 417/417 valid raw files with zero failures.
 
 12. Parse the Olympic raw archive into analysis-ready RDS/CSV files:
 
@@ -201,6 +205,16 @@ Primary parsed output:
 data/olympic/parsed/fivb_olympic_ranking_entries.rds
 data/olympic/parsed/fivb_olympic_ranking_entries.csv
 ```
+
+The parsed archive contains 134,494 rows across all 417 snapshots.
+
+13. Run final Olympic archive QA:
+
+```r
+source("scripts/13_validate_olympic_archive.R")
+```
+
+This checks the parsed snapshot set and row counts against the exhaustive discovery output, validates independently probed final Olympic tables, reports status values and historical source quirks, and writes diagnostics under `data/olympic/qa/`.
 
 ## Design principle
 
