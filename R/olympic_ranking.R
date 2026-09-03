@@ -24,6 +24,10 @@ OLYMPIC_RANKING_FIELDS <- c(
 # already qualified through another Olympic pathway (for example the prior
 # World Championship winners). The current public enum documentation is stale
 # and does not name value 9, so keep the label explicitly marked as inferred.
+#
+# Status 10 appears only in retained Tokyo 2020-cycle snapshots. Its semantic
+# meaning has not yet been established from public VIS documentation, so retain
+# it explicitly as undocumented rather than converting it to NA or guessing.
 OLYMPIC_STATUS_LABELS <- c(
   `1` = "Selected",
   `2` = "SelectedMinHostQuota",
@@ -33,7 +37,8 @@ OLYMPIC_STATUS_LABELS <- c(
   `6` = "CountryQuota",
   `7` = "NotRegistered",
   `8` = "NotEnoughPoints",
-  `9` = "AlreadyQualifiedOtherPathway_inferred"
+  `9` = "AlreadyQualifiedOtherPathway_inferred",
+  `10` = "UndocumentedStatus10"
 )
 
 build_olympic_ranking_request <- function(gender,
