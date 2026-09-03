@@ -19,6 +19,10 @@ x <- readRDS(parsed_file) |>
     SelectionRank = as.numeric(SelectionRank),
     Points = as.numeric(Points),
     Status = as.numeric(Status),
+    StatusLabel = case_when(
+      Status == 10 ~ "UndocumentedStatus10",
+      TRUE ~ StatusLabel
+    ),
     pair_key = if_else(
       !is.na(NoPlayer1) & !is.na(NoPlayer2),
       paste(pmin(NoPlayer1, NoPlayer2), pmax(NoPlayer1, NoPlayer2), sep = "|"),
